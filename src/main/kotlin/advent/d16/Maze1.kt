@@ -3,26 +3,28 @@ package advent.d16
 import java.io.File
 import java.util.*
 
-//data class Position(val row: Int, val col: Int)
 data class Point(val row: Int, val col: Int)
-//data class State(val position: Position, val path: List<Position>)
+data class State(
+    val point: Point,
+    val path: List<Point>,
+    val steps: Int,
+    val turns: Int,
+    val direction: Pair<Int, Int>? // The direction we used to enter this cell
+)
 
+private const val N = 100
 private val DIRECTIONS = listOf(Pair(0, 1), Pair(0, -1), Pair(1, 0), Pair(-1, 0))
 
 fun main() {
     val maze = File("src/main/kotlin/advent/d16/i1.txt").readLines()
     val (start, end) = findStartAndEnd(maze)
-    val allPaths = mutableListOf<List<Point>>()
-    val visited = Array(maze.size) { BooleanArray(maze[0].length) { false } }
-
-
-    dfsAllPaths(maze, start, end, visited, mutableListOf(), allPaths)
+    val shortestPaths = findNShortestPaths(maze, start, end, N)
 
     var minScore = Int.MAX_VALUE
-    for (p in allPaths) {
-        printMazeWithPath(maze, p, start, end)
-        val scoreSteps = p.size - 1
-        val scoreTurns = countTurns(p) * 1000
+    for (p in shortestPaths) {
+        printMazeWithPath(maze, p.path, start, end)
+        val scoreSteps = p.path.size - 1
+        val scoreTurns = countTurns(p.path) * 1000
         val score = scoreSteps + scoreTurns
         println("Score: $score")
         if (score < minScore) {
@@ -32,44 +34,59 @@ fun main() {
     println(minScore)
 }
 
-fun dfsAllPaths(
-    maze: List<String>,
-    current: Point,
-    end: Point,
-    visited: Array<BooleanArray>,
-    path: MutableList<Point>,
-    allPaths: MutableList<List<Point>>
-) {
-    // Mark current as visited and add to path
-    visited[current.row][current.col] = true
-    path.add(current)
+fun findNShortestPaths(maze: List<String>, start: Point, end: Point, n: Int): List<State> {
+    // min-heap by score = steps + 1000*turns
+    val pq = PriorityQueue<State>(compareBy { it.steps + 1000 * it.turns })
+    pq.add(State(start, listOf(start), steps = 0, turns = 0, direction = null))
 
-    // Check if we reached the end
-    if (current == end) {
-        // Make a copy of the current path and add to allPaths
-        allPaths.add(ArrayList(path))
-    } else {
-        // Explore neighbors
-        val directions = listOf(Point(1,0), Point(-1,0), Point(0,1), Point(0,-1))
-        for (d in directions) {
-            val next = Point(current.row + d.row, current.col + d.col)
-            if (canMove(maze, visited, next)) {
-                dfsAllPaths(maze, next, end, visited, path, allPaths)
+    // keep track of the best score found so far for a cell + direction.
+    // key: (row, col, dirRow, dirCol) -> bestScore
+    val visitedScores = mutableMapOf<Triple<Int, Int, Pair<Int, Int>?>, Int>()
+
+    val foundPaths = mutableListOf<State>()
+
+    while (pq.isNotEmpty() && foundPaths.size < n) {
+        val current = pq.poll()
+        val (cPoint, cPath, cSteps, cTurns, cDir) = current
+
+        // If we reached the end, record this path
+        if (cPoint == end) {
+            foundPaths.add(current)
+            continue
+        }
+
+        for (d in DIRECTIONS) {
+            val next = Point(cPoint.row + d.first, cPoint.col + d.second)
+            if (!canMove(maze, next)) continue
+
+            val newSteps = cSteps + 1
+            val newTurns = if (cDir == null) {
+                // first move doesn't count as a turn, but let's decide how to handle:
+                // We can start counting direction changes from the second step.
+                // Let's assume no turn on the first step.
+                cTurns
+            } else {
+                // If direction changed
+                if (cDir != d) cTurns + 1 else cTurns
+            }
+            val newScore = newSteps + 1000 * newTurns
+
+            val stateKey = Triple(next.row, next.col, d)
+            val prevBest = visitedScores[stateKey]
+            if (prevBest == null || newScore < prevBest) {
+                visitedScores[stateKey] = newScore
+                pq.add(State(next, cPath + next, newSteps, newTurns, d))
             }
         }
     }
-
-    // Backtrack
-    path.removeAt(path.size - 1)
-    visited[current.row][current.col] = false
+    return foundPaths
 }
 
-fun canMove(maze: List<String>, visited: Array<BooleanArray>, p: Point): Boolean {
+fun canMove(maze: List<String>, p: Point): Boolean {
     val rows = maze.size
     val cols = maze[0].length
     if (p.row !in 0 until rows || p.col !in 0 until cols) return false
     if (maze[p.row][p.col] == '#') return false
-    if (visited[p.row][p.col]) return false
     return true
 }
 
