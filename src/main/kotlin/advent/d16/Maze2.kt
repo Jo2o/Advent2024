@@ -3,22 +3,14 @@ package advent.d16
 import java.io.File
 import java.util.*
 
-data class Point(val row: Int, val col: Int)
-data class State(
-    val point: Point,
-    val path: List<Point>,
-    val steps: Int,
-    val turns: Int,
-    val direction: Pair<Int, Int>? // The direction we used to enter this cell
-)
-
 private const val N = 100
-val DIRECTIONS = listOf(Pair(0, 1), Pair(0, -1), Pair(1, 0), Pair(-1, 0))
 
 fun main() {
-    val maze = File("src/main/kotlin/advent/d16/t1.txt").readLines()
+    val maze = File("src/main/kotlin/advent/d16/i1.txt").readLines()
     val (start, end) = findStartAndEnd(maze)
     val shortestPaths = findNShortestPaths(maze, start, end, N)
+
+    val scoredPaths = mutableMapOf<Int, List<List<Point>>>()
 
     var minScore = Int.MAX_VALUE
     for (p in shortestPaths) {
@@ -27,11 +19,20 @@ fun main() {
         val scoreTurns = countTurns(p.path) * 1000
         val score = scoreSteps + scoreTurns
         println("Score: $score")
-        if (score < minScore) {
+        if (score <= minScore) {
             minScore = score
+            scoredPaths[score] = (scoredPaths[score]?.plus(listOf(p.path)) ?: listOf(p.path))
         }
     }
     println(minScore)
+
+    val bestPathsPoints = mutableSetOf<Point>()
+    for (path in scoredPaths[minScore]!!) {
+        for (point in path) {
+            bestPathsPoints.add(point)
+        }
+    }
+    println("Best path points size: ${bestPathsPoints.size}")
 }
 
 private fun findNShortestPaths(maze: List<String>, start: Point, end: Point, n: Int): List<State> {
@@ -73,7 +74,7 @@ private fun findNShortestPaths(maze: List<String>, start: Point, end: Point, n: 
 
             val stateKey = Triple(next.row, next.col, d)
             val prevBest = visitedScores[stateKey]
-            if (prevBest == null || newScore < prevBest) {
+            if (prevBest == null || newScore <= prevBest) {
                 visitedScores[stateKey] = newScore
                 pq.add(State(next, cPath + next, newSteps, newTurns, d))
             }
