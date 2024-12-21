@@ -2,16 +2,24 @@ package advent.d18
 
 import java.io.File
 
-private const val SIZE = 70
-private const val BYTES = 1024
+private const val SIZE = 70 //6
+private const val BYTES = 1024 //12
 
 fun main() {
     val inStrs = File("src/main/kotlin/advent/d18/i1.txt").readLines()
     val map = createMap(inStrs)
     printMap(map)
-    val path = findShortestPath(map)
 
-    println("Steps: ${path?.size?.minus(1)}")
+    for (i in BYTES until inStrs.size) {
+        val nums = inStrs[i].split(",").map { it.toInt() }
+        updatePoint(map, nums[1], nums[0], '#')
+        if (findShortestPath(map) == null) {
+            printMap(map)
+            println("Cutoff byte: $nums")
+            break
+        }
+    }
+
 }
 
 private fun findShortestPath( maze: List<Point>): List<Point>? {
@@ -44,7 +52,6 @@ private fun findShortestPath( maze: List<Point>): List<Point>? {
     }
     return null
 }
-
 
 private fun createMap(inStrs: List<String>): List<Point> {
     val map = mutableListOf<Point>()
