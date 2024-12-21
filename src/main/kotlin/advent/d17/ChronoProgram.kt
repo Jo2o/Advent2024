@@ -4,13 +4,11 @@ import java.io.File
 
 fun main() {
     val inStrs = File("src/main/kotlin/advent/d17/i1.txt").readLines()
-
     val regs = mutableListOf(
         parseRegister(inStrs[0]),
         parseRegister(inStrs[1]),
         parseRegister(inStrs[2]),
     )
-
     val program = parseProgram(inStrs[4])
 
     val output = mutableListOf<String>()
